@@ -829,32 +829,27 @@ function baixar(html,ag){
 }
 async function publicar(html,msg){
   try{
-    let token=null;
-    try{token=localStorage.getItem("nl_token");}catch(e){}
-    if(!token){
-      token=prompt("Cole seu token do Netlify (só na primeira vez).\n\nOnde criar: app.netlify.com → seu avatar → User settings → Applications → Personal access tokens → New access token.");
-      if(!token){ baixar(html,new Date()); msg.className=""; msg.textContent="Publicação cancelada — arquivo baixado como reserva."; return; }
-      token=token.trim();
-      try{localStorage.setItem("nl_token",token);}catch(e){}
+    msg.className="info";
+    msg.textContent="⏳ Enviando atualização para o GitHub… O Netlify publicará automaticamente em seguida.";
+
+    const r=await fetch("/.netlify/functions/update-github",{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({html})
+    });
+
+    let dados={};
+    try{ dados=await r.json(); }catch(e){}
+
+    if(!r.ok){
+      throw new Error(dados.erro || dados.message || "Falha ao publicar pelo GitHub ("+r.status+").");
     }
-    msg.className="info"; msg.textContent="⏳ Publicando no site…";
-    const corpo=new TextEncoder().encode(html);
-    const hashBuf=await crypto.subtle.digest("SHA-1",corpo);
-    const sha=[...new Uint8Array(hashBuf)].map(b=>b.toString(16).padStart(2,"0")).join("");
-    const r1=await fetch(`https://api.netlify.com/api/v1/sites/${location.hostname}/deploys`,{
-      method:"POST",headers:{"Authorization":"Bearer "+token,"Content-Type":"application/json"},
-      body:JSON.stringify({files:{"/index.html":sha}})});
-    if(r1.status===401){ try{localStorage.removeItem("nl_token");}catch(e){} throw new Error("Token inválido. Clique de novo e cole um token novo."); }
-    if(!r1.ok) throw new Error("Falha ao criar publicação ("+r1.status+").");
-    const dep=await r1.json();
-    if((dep.required||[]).includes(sha)){
-      const r2=await fetch(`https://api.netlify.com/api/v1/deploys/${dep.id}/files/index.html`,{
-        method:"PUT",headers:{"Authorization":"Bearer "+token,"Content-Type":"application/octet-stream"},body:corpo});
-      if(!r2.ok) throw new Error("Falha ao enviar o arquivo ("+r2.status+").");
-    }
-    msg.className="ok"; msg.textContent="✔ Publicado! O link da equipe já mostra os dados novos.";
+
+    msg.className="ok";
+    msg.textContent="✔ Atualização enviada! Aguarde cerca de 30 a 60 segundos para o Netlify publicar para toda a equipe.";
   }catch(e){
-    msg.className="erro"; msg.textContent="✖ "+e.message+" — Baixei o arquivo como reserva: suba manualmente no Netlify (Deploys).";
+    msg.className="erro";
+    msg.textContent="✖ "+e.message+" — Baixei o arquivo como reserva para não perder a atualização.";
     baixar(html,new Date());
   }
 }
