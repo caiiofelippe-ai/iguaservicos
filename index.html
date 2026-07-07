@@ -808,7 +808,7 @@ async function processarArquivo(file,msg){
     out.geradoEm=ag.toLocaleDateString("pt-BR")+" "+ag.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"});
     document.getElementById("dados-json").textContent=JSON.stringify(out).replace(/</g,"\\u003c");
     iniciar(out);
-    const html="<!DOCTYPE html>\n"+document.documentElement.outerHTML;
+    const html=gerarHtmlParaPublicar();
     const noSite=location.hostname.endsWith("netlify.app");
     if(noSite && confirm(`${tot} serviços analisados.\n\nPublicar agora no site para toda a equipe?\n(Cancelar = ver apenas no seu navegador)`)){
       await publicar(html,msg);
@@ -819,6 +819,27 @@ async function processarArquivo(file,msg){
       msg.className="ok"; msg.textContent=`✔ ${tot} serviços analisados (visível só para você).`;
     }
   }catch(e){ msg.className="erro"; msg.textContent="✖ "+e.message; }
+}
+
+
+function gerarHtmlParaPublicar(){
+  const clone=document.documentElement.cloneNode(true);
+  const tela=clone.querySelector("#login-inicial");
+  if(tela){
+    tela.removeAttribute("style");
+    tela.style.display="flex";
+  }
+  const body=clone.querySelector("body");
+  if(body){
+    body.classList.add("login-bloqueado");
+  }
+  const usuario=clone.querySelector("#login-usuario");
+  const senha=clone.querySelector("#login-senha");
+  const msg=clone.querySelector("#login-msg");
+  if(usuario){ usuario.removeAttribute("value"); }
+  if(senha){ senha.removeAttribute("value"); }
+  if(msg){ msg.textContent=""; }
+  return "<!DOCTYPE html>\n"+clone.outerHTML;
 }
 
 function baixar(html,ag){
